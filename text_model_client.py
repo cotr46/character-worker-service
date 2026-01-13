@@ -65,7 +65,7 @@ class TextModelClient:
         if self.enable_logging:
             logging.basicConfig(level=logging.INFO)
         
-        # API endpoint
+        # API endpoint - FIXED: Remove duplicate /api
         self.chat_endpoint = f"{self.base_url}/chat/completions"
         
         self.log(f"🤖 TextModelClient initialized")
