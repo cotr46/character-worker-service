@@ -66,10 +66,10 @@ spec:
           value: "law-involvement-corporate"
         
         # Text Analysis Model Endpoints (CONFIGURED WITH ACTUAL ENDPOINT)
-        - name: TEXT_MODEL_BASE_URL
-          value: "https://nexus.bnimove.ai:3045/5754154.asia-south1"
-        - name: TEXT_MODEL_API_KEY
-          value: "sk-c2facbdbf4daea4361a7685d091fdb8abf2"
+        - name: OPENWEBUI_BASE_URL
+          value: "https://nexus-bnimove-369455734154.asia-southeast2.run.app"
+        - name: OPENWEBUI_API_KEY
+          value: "sk-c2ebcb8d36aa4361a28560915d8ab6f2"
         - name: TEXT_MODEL_TIMEOUT_SECONDS
           value: "30"
         - name: TEXT_MODEL_RETRY_ATTEMPTS
