@@ -427,7 +427,38 @@ class UltraFastDocumentWorker:
         ULTRA-FAST document processing dengan minimal overhead
         Supports both single and multi-file processing
         """
-        job_id = job_data["job_id"]
+        job_id = job_data.get("job_id", "unknown")
+        
+        # CRITICAL: Validate this is actually a document processing job
+        job_type = job_data.get("job_type", "document")
+        if job_type == "text_analysis":
+            error_msg = f"CRITICAL ERROR: Text analysis job {job_id} incorrectly routed to document processor"
+            print(f"❌ {error_msg}")
+            print(f"🔍 Job data keys: {list(job_data.keys())}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "processing_time": 0,
+                "traceback": "Text analysis job incorrectly routed to document processing function"
+            }
+        
+        # Validate required document processing fields
+        required_fields = ["document_type", "gcs_path", "filename"]
+        missing_fields = [field for field in required_fields if field not in job_data]
+        
+        if missing_fields:
+            error_msg = f"Missing required document processing fields: {missing_fields}"
+            print(f"❌ {error_msg}")
+            print(f"🔍 Available fields: {list(job_data.keys())}")
+            print(f"🔍 Job type: {job_type}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "processing_time": 0,
+                "job_type": job_type,
+                "available_fields": list(job_data.keys())
+            }
+        
         document_type = job_data["document_type"]
         gcs_path = job_data["gcs_path"]
         filename = job_data["filename"]
@@ -592,6 +623,37 @@ class UltraFastDocumentWorker:
         ULTRA-FAST text analysis processing with comprehensive metrics tracking
         """
         job_id = job_data.get("job_id", "unknown")
+        
+        # CRITICAL: Validate this is actually a text analysis job
+        job_type = job_data.get("job_type", "document")
+        if job_type != "text_analysis":
+            error_msg = f"CRITICAL ERROR: Document processing job {job_id} incorrectly routed to text analysis processor"
+            print(f"❌ {error_msg}")
+            print(f"🔍 Job data keys: {list(job_data.keys())}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "processing_time": 0,
+                "traceback": "Document processing job incorrectly routed to text analysis function"
+            }
+        
+        # Validate required text analysis fields
+        required_fields = ["analysis_type", "entity_type", "name"]
+        missing_fields = [field for field in required_fields if field not in job_data]
+        
+        if missing_fields:
+            error_msg = f"Missing required text analysis fields: {missing_fields}"
+            print(f"❌ {error_msg}")
+            print(f"🔍 Available fields: {list(job_data.keys())}")
+            print(f"🔍 Job type: {job_type}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "processing_time": 0,
+                "job_type": job_type,
+                "available_fields": list(job_data.keys())
+            }
+        
         analysis_type = job_data.get("analysis_type")
         entity_type = job_data.get("entity_type")
         name = job_data.get("name")
@@ -846,11 +908,21 @@ class UltraFastDocumentWorker:
                 # Route to appropriate processor based on job type
                 job_type = message_data.get("job_type", "document")  # Default to document for backward compatibility
                 
+                print(f"🔍 Job routing for {job_id}:")
+                print(f"   - Job type: {job_type}")
+                print(f"   - Available fields: {list(message_data.keys())}")
+                
                 if job_type == "text_analysis":
                     print(f"🔍 Processing text analysis job: {job_id}")
+                    print(f"   - Analysis type: {message_data.get('analysis_type')}")
+                    print(f"   - Entity type: {message_data.get('entity_type')}")
+                    print(f"   - Name: {message_data.get('name', '')[:50]}...")
                     result = self.ultra_fast_process_text_analysis(message_data)
                 else:
                     print(f"🔍 Processing document job: {job_id}")
+                    print(f"   - Document type: {message_data.get('document_type')}")
+                    print(f"   - Has GCS path: {'gcs_path' in message_data}")
+                    print(f"   - Has filename: {'filename' in message_data}")
                     result = self.ultra_fast_process_document(message_data)
                 
                 message_time = time.time() - message_start_time
@@ -978,11 +1050,20 @@ class UltraFastDocumentWorker:
                                     
                                     # Debug message content
                                     job_id = message_data.get('job_id', 'unknown')
+                                    job_type = message_data.get('job_type', 'not_specified')
                                     print(f"📨 Parsed message for job {job_id}")
+                                    print(f"   - Job type: {job_type}")
                                     print(f"   - Keys: {list(message_data.keys())}")
-                                    print(f"   - Document type: {message_data.get('document_type')}")
-                                    print(f"   - Has GCS path: {'gcs_path' in message_data}")
-                                    print(f"   - Has filename: {'filename' in message_data}")
+                                    
+                                    # Log specific fields based on job type
+                                    if job_type == "text_analysis":
+                                        print(f"   - Analysis type: {message_data.get('analysis_type')}")
+                                        print(f"   - Entity type: {message_data.get('entity_type')}")
+                                        print(f"   - Name: {message_data.get('name', '')[:30]}...")
+                                    else:
+                                        print(f"   - Document type: {message_data.get('document_type')}")
+                                        print(f"   - Has GCS path: {'gcs_path' in message_data}")
+                                        print(f"   - Has filename: {'filename' in message_data}")
                                     
                                 except (UnicodeDecodeError, json.JSONDecodeError) as parse_error:
                                     print(f"❌ Message parsing failed: {parse_error}")
@@ -1216,6 +1297,52 @@ async def health():
                 "http_health_check": True
             }
         )
+
+@app.get("/debug/last-messages")
+async def get_last_messages():
+    """Debug endpoint to see recent message processing"""
+    global worker
+    if worker:
+        with worker.active_jobs_lock:
+            active_jobs = dict(worker.active_jobs)
+        
+        return {
+            "active_jobs": active_jobs,
+            "processed_jobs": worker.processed_jobs,
+            "failed_jobs": worker.failed_jobs,
+            "is_running": worker.is_running,
+            "last_heartbeat": worker.last_heartbeat.isoformat() if worker.last_heartbeat else None,
+            "subscription_path": worker.subscription_path,
+            "debug_info": "Check logs for detailed message processing information"
+        }
+    else:
+        return {"error": "Worker not initialized"}
+
+@app.get("/debug/config")
+async def get_worker_config():
+    """Debug endpoint to see worker configuration"""
+    global worker
+    if worker:
+        return {
+            "project_id": worker.project_id,
+            "subscription_name": worker.subscription_name,
+            "subscription_path": worker.subscription_path,
+            "max_workers": worker.max_workers,
+            "max_concurrent_chunks": worker.max_concurrent_chunks,
+            "processor_config": {
+                "api_key": "***" + worker.processor_config["api_key"][-4:] if worker.processor_config.get("api_key") else None,
+                "base_url": worker.processor_config.get("base_url"),
+                "timeout_seconds": worker.processor_config.get("timeout_seconds"),
+            },
+            "text_processor_config": {
+                "api_key": "***" + worker.text_processor_config["api_key"][-4:] if worker.text_processor_config.get("api_key") else None,
+                "base_url": worker.text_processor_config.get("base_url"),
+                "timeout_seconds": worker.text_processor_config.get("timeout_seconds"),
+                "max_retries": worker.text_processor_config.get("max_retries"),
+            }
+        }
+    else:
+        return {"error": "Worker not initialized"}
 
 @app.get("/metrics")
 async def metrics():
