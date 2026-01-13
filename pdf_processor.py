@@ -1065,8 +1065,8 @@ def main() -> None:
         python ultra_fast_pdf_processor.py file.pdf --type nib --production
     """
     config = {
-        "api_key": os.getenv("OPENWEBUI_API_KEY", "sk-c2facbdbf4daea4361a7685d091fdb8abf2"),
-        "base_url": os.getenv("OPENWEBUI_BASE_URL", "https://nexus.bnimove.ai:3045/5754154.asia-south1"),
+        "api_key": os.getenv("OPENWEBUI_API_KEY", "sk-c2ebcb8d36aa4361a28560915d8ab6f2"),
+        "base_url": os.getenv("OPENWEBUI_BASE_URL", "https://nexus-bnimove-369455734154.asia-southeast2.run.app"),
         "model": os.getenv("OPENWEBUI_MODEL", "image-screening-shmshm-elektronik"),
         
         # HIGH-QUALITY SETTINGS - for consistent AI results
